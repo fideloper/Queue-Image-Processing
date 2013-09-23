@@ -15,48 +15,61 @@ The process followed in this code will:
 
 Install Laravel:
 
-    $ composer create-project laravel/laravel myproject
+```shell
+$ composer create-project laravel/laravel myproject
+```
 
 Add Composer requirements:
 
-    {
-        "require": {
-            "laravel/framework": "4.0.*",
-            "pda/pheanstalk": "dev-master",
-            "aws/aws-sdk-php-laravel": "1.*"
-        }
+```json
+{
+    "require": {
+        "laravel/framework": "4.0.*",
+        "pda/pheanstalk": "dev-master",
+        "aws/aws-sdk-php-laravel": "1.*"
     }
+}
+```
 
 Followed by:
 
-    $ composer update
+```shell
+$ composer update
+```
 
 Setup AWS in Laravel:
 
-    $ php artisan config:publish aws/aws-sdk-php-laravel
+```shell
+$ php artisan config:publish aws/aws-sdk-php-laravel
 
-    # And then edit app/config/packages/aws/aws-sdk-php-laravel.php
-    # And then add `Aws\Laravel\AwsServiceProvider` Service Provider
-    # And then (optionally) add Aws Facade
+# And then edit app/config/packages/aws/aws-sdk-php-laravel.php
+# And then add `Aws\Laravel\AwsServiceProvider` Service Provider
+# And then (optionally) add Aws Facade
+```
 
 Upload a file to S3:
 
-    $file = Input::file('file');
+```php
+$file = Input::file('file');
 
-    // Consider file naming:
-    // md5($file->getClientOriginalName() . new DateTime->format('Y-m-d H:i:s'));
+// Consider file naming:
+// md5($file->getClientOriginalName() . new DateTime->format('Y-m-d H:i:s'));
 
-    $s3 = AWS::get('s3');
-    $s3->putObject(array(
-        'Bucket'      => 'testprocqueue',
-        'Key'         => $file->getClientOriginalName(),
-        'SoureFile'   => $file->getRealPath(),
-        'ContentType' => $file->getClientMimeType(),
-        // ACL to be public? (Not yet)
-    ));
+$s3 = AWS::get('s3');
+$s3->putObject(array(
+    'Bucket'      => 'testprocqueue',
+    'Key'         => $file->getClientOriginalName(),
+    'SoureFile'   => $file->getRealPath(),
+    'ContentType' => $file->getClientMimeType(),
+    // ACL to be public? (Not yet)
+));
+```
+
+## Queues
 
 Setup Beastalkd and server requirements. Some [info on installing Beanstalkd](http://fideloper.com/ubuntu-beanstalkd-and-laravel4):
 
-    $ sudo apt-get update
-    $ sudo apt-get install beanstalkd supervisor
-
+```shell
+$ sudo apt-get update
+$ sudo apt-get install beanstalkd supervisor
+```
