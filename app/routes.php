@@ -16,6 +16,11 @@ Route::get('/', function()
 	return View::make('hello');
 });
 
+Route::get('/complete', function()
+{
+    return View::make('complete');
+});
+
 // Upload an image to S3 and
 // create a job to process it
 Route::post('/', function()
@@ -30,6 +35,7 @@ Route::post('/', function()
         return Redirect::to('/');
     }
 
+    // Upload File
     $file = Input::file('file');
 
     $s3 = AWS::get('s3');
@@ -40,5 +46,12 @@ Route::post('/', function()
         'ContentType' => $file->getClientMimeType(),
     ));
 
-    return 'success';
+    // Create job
+    Queue::push('ImageProcessor', array(
+        'bucket'   => 'testprocqueue',
+        'key' => $file->getClientOriginalName(),
+        'mimetype' => $file->getClientMimeType(),
+    ));
+
+    return Redirect::to('/complete');
 });
