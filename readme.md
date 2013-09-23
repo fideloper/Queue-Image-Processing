@@ -1,21 +1,62 @@
-## Laravel PHP Framework
+# Laravel Upload, Queue, Process
 
-[![Latest Stable Version](https://poser.pugx.org/laravel/framework/version.png)](https://packagist.org/packages/laravel/framework) [![Total Downloads](https://poser.pugx.org/laravel/framework/d/total.png)](https://packagist.org/packages/laravel/framework) [![Build Status](https://travis-ci.org/laravel/framework.png)](https://travis-ci.org/laravel/framework)
+The process followed in this code will:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable, creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as authentication, routing, sessions, and caching.
+1. Upload image via form, Send to S3
+2. Finish processing form - Image to DB
+3. Create queue job
+4. Process queue
+    1. Download image from S3
+    2. Re-size (a few sizes?)
+    3. Re-upload each to S3
+    4. Save results to DB (mark as processed)
 
-Laravel aims to make the development process a pleasing one for the developer without sacrificing application functionality. Happy developers make the best code. To this end, we've attempted to combine the very best of what we have seen in other web frameworks, including frameworks implemented in other languages, such as Ruby on Rails, ASP.NET MVC, and Sinatra.
+## Get Started
 
-Laravel is accessible, yet powerful, providing powerful tools needed for large, robust applications. A superb inversion of control container, expressive migration system, and tightly integrated unit testing support give you the tools you need to build any application with which you are tasked.
+Install Laravel:
 
-## Official Documentation
+    $ composer create-project laravel/laravel myproject
 
-Documentation for the entire framework can be found on the [Laravel website](http://laravel.com/docs).
+Add Composer requirements:
 
-### Contributing To Laravel
+    {
+        "require": {
+            "laravel/framework": "4.0.*",
+            "pda/pheanstalk": "dev-master",
+            "aws/aws-sdk-php-laravel": "1.*"
+        }
+    }
 
-**All issues and pull requests should be filed on the [laravel/framework](http://github.com/laravel/framework) repository.**
+Followed by:
 
-### License
+    $ composer update
 
-The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT)
+Setup AWS in Laravel:
+
+    $ php artisan config:publish aws/aws-sdk-php-laravel
+
+    # And then edit app/config/packages/aws/aws-sdk-php-laravel.php
+    # And then add `Aws\Laravel\AwsServiceProvider` Service Provider
+    # And then (optionally) add Aws Facade
+
+Upload a file to S3:
+
+    $file = Input::file('file');
+
+    // Consider file naming:
+    // md5($file->getClientOriginalName() . new DateTime->format('Y-m-d H:i:s'));
+
+    $s3 = AWS::get('s3');
+    $s3->putObject(array(
+        'Bucket'      => 'testprocqueue',
+        'Key'         => $file->getClientOriginalName(),
+        'SoureFile'   => $file->getRealPath(),
+        'ContentType' => $file->getClientMimeType(),
+        // ACL to be public? (Not yet)
+    ));
+
+Setup Beastalkd and server requirements. Some [info on installing Beanstalkd](http://fideloper.com/ubuntu-beanstalkd-and-laravel4):
+
+    $ sudo apt-get update
+    $ sudo apt-get install beanstalkd supervisor
+
