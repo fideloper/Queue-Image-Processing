@@ -13,7 +13,7 @@ The process followed in this code will:
 
 ## Get Started
 
-Install Laravel:
+**Install Laravel:**
 
 ```shell
 $ composer create-project laravel/laravel myproject
@@ -26,7 +26,8 @@ Add Composer requirements:
     "require": {
         "laravel/framework": "4.0.*",
         "pda/pheanstalk": "dev-master",
-        "aws/aws-sdk-php-laravel": "1.*"
+        "aws/aws-sdk-php-laravel": "1.*",
+        "eventviva/php-image-resize": "dev-master"
     }
 }
 ```
@@ -37,7 +38,26 @@ Followed by:
 $ composer update
 ```
 
-Setup AWS in Laravel:
+**Setup Autoloading:**
+
+Create directory `app/Proc` and then autoload it:
+
+```json
+{
+    "autoload": {
+        "classmap": [
+            /* ... */
+        ],
+        "psr-0": {
+            "Proc": "app"
+        }
+    },
+}
+```
+
+Then run a `$ composer dump-autoload`.
+
+**Setup AWS in Laravel:**
 
 ```shell
 $ php artisan config:publish aws/aws-sdk-php-laravel
@@ -47,7 +67,33 @@ $ php artisan config:publish aws/aws-sdk-php-laravel
 # And then (optionally) add Aws Facade
 ```
 
-Upload a file to S3:
+## Queues
+
+**Setup Beastalkd and server requirements.**
+
+Note: some more [info on installing Beanstalkd](http://fideloper.com/ubuntu-beanstalkd-and-laravel4).
+
+```shell
+$ sudo apt-get update
+$ sudo apt-get install beanstalkd supervisor
+```
+
+**Create a job to resize the images**
+
+```php
+<?php namespace Proc\Workers;
+
+class ImageProcessor {
+
+    public function fire($job, $data)
+    {
+
+    }
+
+}
+```
+
+**Upload a file to S3 and create Queue to process it:**
 
 ```php
 $file = Input::file('file');
@@ -63,13 +109,9 @@ $s3->putObject(array(
     'ContentType' => $file->getClientMimeType(),
     // ACL to be public? (Not yet)
 ));
-```
 
-## Queues
-
-Setup Beastalkd and server requirements. Some [info on installing Beanstalkd](http://fideloper.com/ubuntu-beanstalkd-and-laravel4):
-
-```shell
-$ sudo apt-get update
-$ sudo apt-get install beanstalkd supervisor
+Queue::push('ImageProcessor', array(
+    'filename'    => $file->getClientOriginalName(),
+    'mimetype' => $file->getClientMimeType(),
+));
 ```
