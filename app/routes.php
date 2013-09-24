@@ -47,7 +47,7 @@ Route::post('/', function()
     ));
 
     // Create job
-    Queue::push('ImageProcessor', array(
+    Queue::push('\Proc\Worker\ImageProcessor', array(
         'bucket'   => 'testprocqueue',
         'key' => $file->getClientOriginalName(),
         'mimetype' => $file->getClientMimeType(),
