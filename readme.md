@@ -27,7 +27,7 @@ Add Composer requirements:
         "laravel/framework": "4.0.*",
         "pda/pheanstalk": "dev-master",
         "aws/aws-sdk-php-laravel": "1.*",
-        "eventviva/php-image-resize": "dev-master"
+        "imagine/imagine": "0.6.*@dev"
     }
 }
 ```
@@ -98,20 +98,69 @@ class ImageProcessor {
 ```php
 $file = Input::file('file');
 
-// Consider file naming:
-// md5($file->getClientOriginalName() . new DateTime->format('Y-m-d H:i:s'));
+$now = new DateTime;
+$hash = md5( $file->getClientOriginalName().$now->format('Y-m-d H:i:s') );
+$key = $hash.'.'.$file->getClientOriginalExtension();
 
 $s3 = AWS::get('s3');
 $s3->putObject(array(
     'Bucket'      => 'testprocqueue',
-    'Key'         => $file->getClientOriginalName(),
-    'SoureFile'   => $file->getRealPath(),
+    'Key'         => $key,
+    'SourceFile'  => $file->getRealPath(),
     'ContentType' => $file->getClientMimeType(),
     // ACL to be public? (Not yet)
 ));
 
 Queue::push('ImageProcessor', array(
-    'filename'    => $file->getClientOriginalName(),
+    'bucket'   => 'testprocqueue',
+    'hash'     => $hash,
+    'key'      => $key,
+    'ext'      => $file->getClientOriginalExtension(),
     'mimetype' => $file->getClientMimeType(),
 ));
+```
+
+**Process the Queued item!**
+
+```php
+<?php namespace Proc\Worker;
+
+use Aws;
+use Imagine\Gd\Imagine;
+use Imagine\Image\Box;
+
+class ImageProcessor {
+
+    protected $width;
+    protected $height;
+    protected $image;
+
+    public function fire($job, $data)
+    {
+        $s3 = Aws::get('s3');
+
+        $response = $s3->getObject(array(
+            'Bucket'      => $data['bucket'],
+            'Key'         => $data['key'],
+        ));
+
+        $imagine = new Imagine();
+        $image = $imagine->load( (string)$response->get('Body') );
+
+        $size = new Box(100, 100);
+        $thumb = $image->thumbnail($size);
+
+        $s3->putObject(array(
+            'Bucket'      => 'testprocqueue',
+            'Key'         => $data['hash'].'_100x100.'.$data['ext'],
+            'Body'        => $thumb->get($data['ext']),
+            'ContentType' => $data['mimetype'],
+        ));
+
+        // Probaby save file info to a media database here
+        // If a user-generated or profile image
+
+    }
+
+}
 ```
