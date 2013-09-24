@@ -1,5 +1,8 @@
 <?php namespace Proc\Worker;
 
+use Imagine\Gd\Imagine;
+use Imagine\Image\Box;
+
 class ImageProcessor {
 
     protected $width;
@@ -15,51 +18,21 @@ class ImageProcessor {
             'Key'         => $data['key'],
         ));
 
-        $this->image = imagecreatefromstring( (string)$response->get('Body') );
+        $imagine = new Imagine();
+        $image = $imagine->load( (string)$response->get('Body') );
 
-        $this->width  = imagesx($this->image);
-        $this->height = imagesy($this->image);
-
-        $resized = $this->resize(10, 10, $data['mimetype']);
+        $size = new Box(100, 100);
+        $thumb = $image->thumbnail($size);
 
         $s3->putObject(array(
             'Bucket'      => 'testprocqueue',
-            'Key'         => $data['key'].'10x10.jpg',
-            'Body'        => $resized,
+            'Key'         => $data['hash'].'_100x100.'.$data['ext'],
+            'Body'        => $thumb->get($data['ext']),
             'ContentType' => $data['mimetype'],
         ));
 
-    }
+        // Probaby save these to a database here
 
-    protected function resize($width, $height, $mime, $forcesize = false)
-    {
-        /* optional. if file is smaller, do not resize. */
-        if ($forcesize === false) {
-            if ($width > $this->width && $height > $this->height) {
-                $width  = $this->width;
-                $height = $this->height;
-            }
-        }
-
-        $new_image = imagecreatetruecolor($width, $height);
-
-        /* Check if this image is PNG or GIF, then set if Transparent */
-        if ( strrpos($mime, 'gif') !== false || strrpos($mime, 'png') !== false ) {
-            imagealphablending($new_image, false);
-            imagesavealpha($new_image, true);
-            $transparent = imagecolorallocatealpha($new_image, 255, 255, 255, 127);
-            imagefilledrectangle($new_image, 0, 0, $width, $height, $transparent);
-        }
-        imagecopyresampled($new_image, $this->image, 0, 0, 0, 0, $width, $height, $this->width, $this->height);
-
-        $this->image = $new_image;
-
-        ob_start();
-        imagejpeg($this->image);
-        $imageData = ob_get_contents();
-        ob_end_clean();
-
-        return $imageData;
     }
 
 }
