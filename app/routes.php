@@ -38,10 +38,14 @@ Route::post('/', function()
     // Upload File
     $file = Input::file('file');
 
+    $now = new DateTime;
+    $hash = md5( $file->getClientOriginalName().$now->format('Y-m-d H:i:s') );
+    $key = $hash.'.'.$file->getClientOriginalExtension();
+
     $s3 = AWS::get('s3');
     $s3->putObject(array(
         'Bucket'      => 'testprocqueue',
-        'Key'         => $file->getClientOriginalName(),
+        'Key'         => $key,
         'SourceFile'  => $file->getRealPath(),
         'ContentType' => $file->getClientMimeType(),
     ));
@@ -49,7 +53,9 @@ Route::post('/', function()
     // Create job
     Queue::push('\Proc\Worker\ImageProcessor', array(
         'bucket'   => 'testprocqueue',
-        'key' => $file->getClientOriginalName(),
+        'hash'     => $hash,
+        'key'      => $key,
+        'ext'      => $file->getClientOriginalExtension(),
         'mimetype' => $file->getClientMimeType(),
     ));
 
